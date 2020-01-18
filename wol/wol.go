@@ -21,14 +21,14 @@ var (
 func Wake(mac net.HardwareAddr) error {
 	conn, err := net.DialUDP("udp", nil, broadcastAddr)
 	if err != nil {
-		return fmt.Errorf("failed to create UDP broadcast: %w", err)
+		return fmt.Errorf("could not create UDP broadcast: %w", err)
 	}
 	defer conn.Close()
 
 	payload := packet(mac)
 
 	if _, err := conn.Write(payload); err != nil {
-		return fmt.Errorf("failed to send Magic Packet: %w", err)
+		return fmt.Errorf("could not send Magic Packet: %w", err)
 	}
 	return nil
 }

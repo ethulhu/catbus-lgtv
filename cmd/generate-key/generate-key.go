@@ -1,4 +1,4 @@
-// Binary list-apps lists the apps for a given WebOS LG TV.
+// Binary generate-key queries a given WebOS LG TV for a new connection key.
 package main
 
 import (
@@ -29,21 +29,15 @@ func main() {
 
 	tv := lgtv.NewClient(cfg.TV.Host, lgtv.DefaultOptions)
 
-	ctx, _ := context.WithTimeout(context.Background(), 60*time.Second)
-	log.Printf("connecting to TV")
-	if err := tv.Connect(ctx); err != nil {
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	if err = tv.Connect(ctx); err != nil {
 		log.Fatalf("could not connect to TV: %v", err)
 	}
-	if _, err := tv.Register(ctx, cfg.TV.Key); err != nil {
-		log.Fatalf("could not register with TV: %v", err)
-	}
 
-	ctx, _ = context.WithTimeout(context.Background(), 5*time.Second)
-	apps, err := tv.ListApps(ctx)
+	ctx, _ = context.WithTimeout(context.Background(), 60*time.Second)
+	key, err := tv.Register(ctx, "")
 	if err != nil {
-		log.Fatalf("could not get apps: %v", err)
+		log.Fatalf("could not register to TV: %v", err)
 	}
-	for _, app := range apps {
-		fmt.Printf("%v: %v\n", app.ID, app.Name)
-	}
+	fmt.Printf("key: %v\n", key)
 }

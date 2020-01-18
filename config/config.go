@@ -26,14 +26,23 @@ type (
 	}
 )
 
+func (c *Config) AppNameForID(id string) (string, bool) {
+	for name, id2 := range c.Apps {
+		if id2 == id {
+			return name, true
+		}
+	}
+	return "", false
+}
+
 func Load(path string) (*Config, error) {
 	src, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
+		return nil, fmt.Errorf("could not read file: %w", err)
 	}
 	config := &Config{}
 	if err := json.Unmarshal(src, config); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, fmt.Errorf("could not parse JSON: %w", err)
 	}
 	return config, nil
 }

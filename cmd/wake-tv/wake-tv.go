@@ -22,7 +22,7 @@ func main() {
 	}
 	cfg, err := config.Load(*configPath)
 	if err != nil {
-		log.Fatalf("failed to load config from %v: %v", *configPath, err)
+		log.Fatalf("could not load config from %v: %v", *configPath, err)
 	}
 
 	mac, err := net.ParseMAC(cfg.TV.MAC)
@@ -30,6 +30,6 @@ func main() {
 		log.Fatalf("invalid MAC address %q: %v", cfg.TV.MAC, err)
 	}
 	if err := wol.Wake(mac); err != nil {
-		log.Fatalf("failed to wake TV: %v", err)
+		log.Fatalf("could not wake TV: %v", err)
 	}
 }

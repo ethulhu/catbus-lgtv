@@ -1,4 +1,4 @@
-// Binary list-apps lists the apps for a given WebOS LG TV.
+// Binary follow-volume listens for and prints changes to the volume on a WebOS LG TV.
 package main
 
 import (
@@ -22,15 +22,19 @@ func main() {
 	if *configPath == "" {
 		log.Fatal("must set --config-path")
 	}
+
 	cfg, err := config.Load(*configPath)
 	if err != nil {
-		log.Fatalf("could not load config from %v: %v", *configPath, err)
+		log.Fatalf("could not load config: %v", err)
 	}
 
 	tv := lgtv.NewClient(cfg.TV.Host, lgtv.DefaultOptions)
 
+	tv.SetVolumeHandler(func(v lgtv.Volume) {
+		fmt.Println(v)
+	})
+
 	ctx, _ := context.WithTimeout(context.Background(), 60*time.Second)
-	log.Printf("connecting to TV")
 	if err := tv.Connect(ctx); err != nil {
 		log.Fatalf("could not connect to TV: %v", err)
 	}
@@ -38,12 +42,8 @@ func main() {
 		log.Fatalf("could not register with TV: %v", err)
 	}
 
-	ctx, _ = context.WithTimeout(context.Background(), 5*time.Second)
-	apps, err := tv.ListApps(ctx)
-	if err != nil {
-		log.Fatalf("could not get apps: %v", err)
-	}
-	for _, app := range apps {
-		fmt.Printf("%v: %v\n", app.ID, app.Name)
-	}
+	_ = tv.SubscribeVolume()
+
+	// block forever.
+	select {}
 }

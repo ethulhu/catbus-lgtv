@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ethulhu/mqtt-lgtv-bridge/config"
@@ -34,6 +36,13 @@ func main() {
 
 	log.Printf("connecting to MQTT broker %v:%v", cfg.BrokerHost, cfg.BrokerPort)
 	broker := mqtt.NewClient(cfg.BrokerHost, cfg.BrokerPort)
+
+	var appNames []string
+	for name := range cfg.Apps {
+		appNames = append(appNames, name)
+	}
+	sort.Strings(appNames)
+	broker.Publish(cfg.TopicAppValues, mqtt.AtLeastOnce, mqtt.Retain, strings.Join(appNames, "\n"))
 
 	tv := lgtv.NewClient(cfg.TV.Host, lgtv.DefaultOptions)
 

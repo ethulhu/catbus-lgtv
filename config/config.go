@@ -18,9 +18,10 @@ type (
 			Key  string `json:"key"`
 		} `json:"tv"`
 
-		TopicPower  string `json:"topic_power"`
-		TopicApp    string `json:"topic_app"`
-		TopicVolume string `json:"topic_volume"`
+		TopicPower     string `json:"topic_power"`
+		TopicApp       string `json:"topic_app"`
+		TopicAppValues string `json:"topic_app_values"`
+		TopicVolume    string `json:"topic_volume"`
 
 		Apps map[string]string `json:"apps"`
 	}

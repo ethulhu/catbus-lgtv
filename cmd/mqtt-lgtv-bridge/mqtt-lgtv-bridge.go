@@ -119,9 +119,9 @@ func main() {
 		ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
 		err := tv.Connect(ctx)
 		for err != nil {
+			log.Printf("could not connect to TV: %v", err)
 			ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
 			err = tv.Connect(ctx)
-			log.Printf("could not connect to TV: %v", err)
 		}
 		if key, err = tv.Register(ctx, key); err != nil {
 			log.Printf("could not register with TV: %v", err)

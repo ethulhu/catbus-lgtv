@@ -88,19 +88,27 @@ func main() {
 	}))
 
 	broker.Subscribe(cfg.TopicPower, mqtt.AtLeastOnce, handler(func(payload string) error {
-		if payload == "on" && !tv.IsConnected() {
-			log.Print("turning TV on")
-			mac, _ := net.ParseMAC(cfg.TV.MAC)
-			if err := wol.Wake(mac); err != nil {
-				return fmt.Errorf("could not turn on TV: %w", err)
+		tvIsOn := tv.IsConnected()
+		switch payload {
+		case "on":
+			if !tvIsOn {
+				mac, _ := net.ParseMAC(cfg.TV.MAC)
+				if err := wol.Wake(mac); err != nil {
+					return fmt.Errorf("could not turn on TV: %w", err)
+				}
 			}
+		case "off":
+			if tvIsOn {
+				ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+				return tv.TurnOff(ctx)
+			}
+		default:
+			power := "off"
+			if tvIsOn {
+				power = "on"
+			}
+			broker.Publish(cfg.TopicPower, mqtt.AtLeastOnce, mqtt.Retain, power)
 		}
-
-		if payload == "off" && tv.IsConnected() {
-			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-			return tv.TurnOff(ctx)
-		}
-
 		return nil
 	}))
 

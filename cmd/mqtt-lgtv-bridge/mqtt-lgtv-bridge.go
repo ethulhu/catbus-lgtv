@@ -42,7 +42,7 @@ func main() {
 		if !ok {
 			name = app.ID
 		}
-		broker.Publish(cfg.TopicInput, mqtt.AtLeastOnce, mqtt.Retain, name)
+		broker.Publish(cfg.TopicApp, mqtt.AtLeastOnce, mqtt.Retain, name)
 	})
 	tv.SetVolumeHandler(func(volume lgtv.Volume) {
 		broker.Publish(cfg.TopicVolume, mqtt.AtLeastOnce, mqtt.Retain, volume.Level)
@@ -62,7 +62,7 @@ func main() {
 		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 		return tv.SetVolume(ctx, volume)
 	}))
-	broker.Subscribe(cfg.TopicInput, mqtt.AtLeastOnce, handler(func(payload string) error {
+	broker.Subscribe(cfg.TopicApp, mqtt.AtLeastOnce, handler(func(payload string) error {
 		appID, ok := cfg.Apps[payload]
 		if !ok {
 			// Try to set the app on the bus to the actual value, but don't worry if it fails.

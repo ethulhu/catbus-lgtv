@@ -19,7 +19,7 @@ type (
 		} `json:"tv"`
 
 		TopicPower  string `json:"topic_power"`
-		TopicInput  string `json:"topic_input"`
+		TopicApp    string `json:"topic_app"`
 		TopicVolume string `json:"topic_volume"`
 
 		Apps map[string]string `json:"apps"`

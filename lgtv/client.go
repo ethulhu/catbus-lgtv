@@ -42,15 +42,18 @@ func (c *client) Connect(ctx context.Context) error {
 		return nil
 	}
 
-	c.requestChannel = make(chan *request)
-	c.responseChannels = map[int]chan *response{}
-	c.connectionClosed = make(chan struct{})
-	c.errors = make(chan error)
-
 	conn, _, err := websocket.DefaultDialer.DialContext(ctx, c.uri, nil)
 	if err != nil {
 		return fmt.Errorf("could not dial %v: %w", c.uri, err)
 	}
+
+	c.Lock()
+	defer c.Unlock()
+	c.sequence = 0
+	c.requestChannel = make(chan *request)
+	c.responseChannels = map[int]chan *response{}
+	c.connectionClosed = make(chan struct{})
+	c.errors = make(chan error)
 
 	conn.SetPongHandler(func(text string) error {
 		return conn.SetReadDeadline(time.Now().Add(c.opts.PongTimeout))

@@ -1,3 +1,4 @@
 config.json
-mqtt-lgtv-bridge
-list-apps
+/list-apps
+/mqtt-lgtv-bridge
+/wake-tv

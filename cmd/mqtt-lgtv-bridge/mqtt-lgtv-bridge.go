@@ -88,6 +88,7 @@ func main() {
 			log.Printf("could not register with TV: %v", err)
 		}
 		log.Print("connected to TV")
+		_ = broker.Publish(cfg.TopicPower, mqtt.AtLeastOnce, mqtt.Retain, "on")
 
 		if err := tv.SubscribeApp(); err != nil {
 			log.Printf("could not subscribe to app events: %v", err)

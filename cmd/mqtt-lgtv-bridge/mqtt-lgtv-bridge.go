@@ -34,83 +34,44 @@ func main() {
 		log.Fatalf("could not load config: %v", err)
 	}
 
-	log.Printf("connecting to MQTT broker %v:%v", cfg.BrokerHost, cfg.BrokerPort)
-	broker := mqtt.NewClient(cfg.BrokerHost, cfg.BrokerPort)
+	tv := lgtv.NewClient(cfg.TV.Host, lgtv.DefaultOptions)
+
+	brokerURI := fmt.Sprintf("tcp://%v:%v", cfg.BrokerHost, cfg.BrokerPort)
+	brokerOptions := mqtt.NewClientOptions()
+	brokerOptions.AddBroker(brokerURI)
+	brokerOptions.SetAutoReconnect(true)
+	brokerOptions.SetConnectionLostHandler(func(_ mqtt.Client, err error) {
+		log.Printf("disconnected from MQTT broker %s: %v", brokerURI, err)
+	})
+	brokerOptions.SetOnConnectHandler(func(broker mqtt.Client) {
+		log.Printf("connected to MQTT broker %v", brokerURI)
+
+		_ = broker.Subscribe(cfg.TopicApp, mqtt.AtLeastOnce, setApp(cfg, tv))
+		_ = broker.Subscribe(cfg.TopicPower, mqtt.AtLeastOnce, setPower(cfg, tv))
+		_ = broker.Subscribe(cfg.TopicVolume, mqtt.AtLeastOnce, setVolume(tv))
+	})
+
+	log.Printf("connecting to MQTT broker %v", brokerURI)
+	broker := mqtt.NewClient(brokerOptions)
+	_ = broker.Connect()
 
 	var appNames []string
 	for name := range cfg.Apps {
 		appNames = append(appNames, name)
 	}
 	sort.Strings(appNames)
-	broker.Publish(cfg.TopicAppValues, mqtt.AtLeastOnce, mqtt.Retain, strings.Join(appNames, "\n"))
-
-	tv := lgtv.NewClient(cfg.TV.Host, lgtv.DefaultOptions)
+	_ = broker.Publish(cfg.TopicAppValues, mqtt.AtLeastOnce, mqtt.Retain, strings.Join(appNames, "\n"))
 
 	tv.SetAppHandler(func(app lgtv.App) {
 		name, ok := cfg.AppNameForID(app.ID)
 		if !ok {
 			name = app.ID
 		}
-		broker.Publish(cfg.TopicApp, mqtt.AtLeastOnce, mqtt.Retain, name)
+		_ = broker.Publish(cfg.TopicApp, mqtt.AtLeastOnce, mqtt.Retain, name)
 	})
 	tv.SetVolumeHandler(func(volume lgtv.Volume) {
-		broker.Publish(cfg.TopicVolume, mqtt.AtLeastOnce, mqtt.Retain, volume.Level)
+		_ = broker.Publish(cfg.TopicVolume, mqtt.AtLeastOnce, mqtt.Retain, fmt.Sprintf("%v", volume.Level))
 	})
-
-	broker.Subscribe(cfg.TopicVolume, mqtt.AtLeastOnce, handler(func(payload string) error {
-		volume, err := strconv.Atoi(payload)
-		if err != nil || !(0 <= volume && volume <= 100) {
-			// Try to set the volume on the bus to the actual value, but don't worry if it fails.
-			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-			if v, err := tv.Volume(ctx); err == nil {
-				broker.Publish(cfg.TopicVolume, mqtt.AtLeastOnce, mqtt.Retain, strconv.Itoa(v.Level))
-			}
-			return fmt.Errorf("volume must be an integer within [0,100], found %v", payload)
-		}
-
-		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-		return tv.SetVolume(ctx, volume)
-	}))
-	broker.Subscribe(cfg.TopicApp, mqtt.AtLeastOnce, handler(func(payload string) error {
-		appID, ok := cfg.Apps[payload]
-		if !ok {
-			// Try to set the app on the bus to the actual value, but don't worry if it fails.
-			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-			if a, err := tv.App(ctx); err == nil {
-				broker.Publish(cfg.TopicVolume, mqtt.AtLeastOnce, mqtt.Retain, a.Name)
-			}
-			return fmt.Errorf("invalid channel %v", payload)
-		}
-
-		// TODO: return the old app / actual app if it was invalid so the bus is valid.
-		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-		return tv.SetApp(ctx, lgtv.App{ID: appID})
-	}))
-
-	broker.Subscribe(cfg.TopicPower, mqtt.AtLeastOnce, handler(func(payload string) error {
-		tvIsOn := tv.IsConnected()
-		switch payload {
-		case "on":
-			if !tvIsOn {
-				mac, _ := net.ParseMAC(cfg.TV.MAC)
-				if err := wol.Wake(mac); err != nil {
-					return fmt.Errorf("could not turn on TV: %w", err)
-				}
-			}
-		case "off":
-			if tvIsOn {
-				ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-				return tv.TurnOff(ctx)
-			}
-		default:
-			power := "off"
-			if tvIsOn {
-				power = "on"
-			}
-			broker.Publish(cfg.TopicPower, mqtt.AtLeastOnce, mqtt.Retain, power)
-		}
-		return nil
-	}))
 
 	// loop forever.
 	key := cfg.TV.Key
@@ -128,20 +89,64 @@ func main() {
 		}
 		log.Print("connected to TV")
 
+		if err := tv.SubscribeApp(); err != nil {
+			log.Printf("could not subscribe to app events: %v", err)
+		}
+		if err := tv.SubscribeVolume(); err != nil {
+			log.Printf("could not subscribe to volume events: %v", err)
+		}
+
 		if err := tv.Err(); err != nil {
 			log.Printf("disconnected from TV: %v", err)
 		}
-		broker.Publish(cfg.TopicPower, mqtt.AtLeastOnce, mqtt.Retain, "off")
+		_ = broker.Publish(cfg.TopicPower, mqtt.AtLeastOnce, mqtt.Retain, "off")
 	}
 }
 
-func handler(f func(string) error) mqtt.MessageHandler {
+func setVolume(tv lgtv.Client) mqtt.MessageHandler {
 	return func(_ mqtt.Client, msg mqtt.Message) {
-		payload := string(msg.Payload())
+		volume, err := strconv.Atoi(string(msg.Payload()))
+		if err != nil || !(0 <= volume && volume <= 100) {
+			return
+		}
 
-		if err := f(payload); err != nil && !errors.Is(err, lgtv.ErrNotConnected) {
+		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := tv.SetVolume(ctx, volume); err != nil && !errors.Is(err, lgtv.ErrNotConnected) {
 			log.Print(err)
 		}
 	}
+}
+func setApp(cfg *config.Config, tv lgtv.Client) mqtt.MessageHandler {
+	return func(_ mqtt.Client, msg mqtt.Message) {
+		appID, ok := cfg.Apps[string(msg.Payload())]
+		if !ok {
+			return
+		}
 
+		// TODO: return the old app / actual app if it was invalid so the bus is valid.
+		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := tv.SetApp(ctx, lgtv.App{ID: appID}); err != nil && !errors.Is(err, lgtv.ErrNotConnected) {
+			log.Print(err)
+		}
+	}
+}
+func setPower(cfg *config.Config, tv lgtv.Client) mqtt.MessageHandler {
+	return func(_ mqtt.Client, msg mqtt.Message) {
+		switch string(msg.Payload()) {
+		case "on":
+			mac, _ := net.ParseMAC(cfg.TV.MAC)
+			if err := wol.Wake(mac); err != nil {
+				log.Printf("could not turn on TV: %w", err)
+			}
+		case "off":
+			if tv.IsConnected() {
+				ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+				if err := tv.TurnOff(ctx); err != nil && !errors.Is(err, lgtv.ErrNotConnected) {
+					log.Print(err)
+				}
+			}
+		default:
+			return
+		}
+	}
 }

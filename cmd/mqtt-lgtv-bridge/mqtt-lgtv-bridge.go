@@ -107,8 +107,14 @@ func main() {
 func setVolume(tv lgtv.Client) mqtt.MessageHandler {
 	return func(_ mqtt.Client, msg mqtt.Message) {
 		volume, err := strconv.Atoi(string(msg.Payload()))
-		if err != nil || !(0 <= volume && volume <= 100) {
+		if err != nil {
 			return
+		}
+		if volume < 0 {
+			volume = 0
+		}
+		if volume > 100 {
+			volume = 100
 		}
 
 		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)

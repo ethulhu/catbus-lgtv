@@ -4,9 +4,9 @@ SPDX-FileCopyrightText: 2020 Ethel Morgan
 SPDX-License-Identifier: MIT
 -->
 
-# MQTT-LGTV Bridge
+# Catbus LGTV
 
-Control WebOS-based LG TVs with MQTT.
+Control WebOS-based LG TVs with [Catbus](https://ethulhu.co.uk/catbus), a home automation platform built around MQTT.
 
 ## MQTT Topics
 

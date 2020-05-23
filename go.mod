@@ -1,4 +1,4 @@
-module github.com/ethulhu/mqtt-lgtv-bridge
+module github.com/ethulhu/catbus-lgtv
 
 go 1.13
 

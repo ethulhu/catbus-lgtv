@@ -6,8 +6,8 @@ import (
 	"log"
 	"net"
 
-	"github.com/ethulhu/mqtt-lgtv-bridge/config"
-	"github.com/ethulhu/mqtt-lgtv-bridge/wol"
+	"github.com/ethulhu/catbus-lgtv/config"
+	"github.com/ethulhu/catbus-lgtv/wol"
 )
 
 var (

@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethulhu/mqtt-lgtv-bridge/config"
-	"github.com/ethulhu/mqtt-lgtv-bridge/lgtv"
-	"github.com/ethulhu/mqtt-lgtv-bridge/mqtt"
-	"github.com/ethulhu/mqtt-lgtv-bridge/wol"
+	"github.com/ethulhu/catbus-lgtv/config"
+	"github.com/ethulhu/catbus-lgtv/lgtv"
+	"github.com/ethulhu/catbus-lgtv/mqtt"
+	"github.com/ethulhu/catbus-lgtv/wol"
 )
 
 var (

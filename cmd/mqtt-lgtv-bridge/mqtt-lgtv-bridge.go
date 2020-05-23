@@ -143,7 +143,7 @@ func setPower(cfg *config.Config, tv lgtv.Client) mqtt.MessageHandler {
 		case "on":
 			mac, _ := net.ParseMAC(cfg.TV.MAC)
 			if err := wol.Wake(mac); err != nil {
-				log.Printf("could not turn on TV: %w", err)
+				log.Printf("could not turn on TV: %v", err)
 			}
 		case "off":
 			if tv.IsConnected() {

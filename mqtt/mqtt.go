@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2020 Ethel Morgan
+//
+// SPDX-License-Identifier: MIT
+
 // Package mqtt wraps Paho MQTT with a few quality-of-life features.
 package mqtt
 

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2020 Ethel Morgan
+//
+// SPDX-License-Identifier: MIT
+
 // Binary follow-volume listens for and prints changes to the volume on a WebOS LG TV.
 package main
 

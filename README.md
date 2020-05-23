@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2020 Ethel Morgan
+
+SPDX-License-Identifier: MIT
+-->
+
 # MQTT-LGTV Bridge
 
 Control WebOS-based LG TVs with MQTT.

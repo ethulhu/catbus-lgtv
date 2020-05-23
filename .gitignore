@@ -1,4 +1,5 @@
 config.json
 /list-apps
-/mqtt-lgtv-bridge
+/catbus-bridge-lgtv
 /wake-tv
+/result

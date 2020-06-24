@@ -12,35 +12,36 @@ Control WebOS-based LG TVs with [Catbus](https://ethulhu.co.uk/catbus), a home a
 
 The control of each parameter of the TV is split into its own topic:
 
-- power, either `on` or `off`.
-- volume, as a percentage, from 0 to 100.
-- app, as a set of user-provided values, or App IDs on the TV (e.g. `com.webos.app.hdmi1`).
+- Power, either `on` or `off`.
+- Volume, as a percentage, from 0 to 100.
+- App, as a set of user-provided values, or App IDs on the TV (e.g. `com.webos.app.hdmi1`).
 
 ## Configuration
 
 The bridge is configured with a JSON file, containing:
 
-- the broker host & port.
-- the TV's host, MAC address, and a key.
-- the topics for power, volume, and app.
-- a set of meaningful names for App IDs.
+- The broker host & port.
+- The TV's host and a [key](#keys).
+- The topics for power, volume, app, and app enum values.
+- A set of meaningful names for App IDs.
 
 For example,
 
 ```json
 {
-	"broker_host": "home-server.local",
-	"broker_port": 1883,
+	"mqttBroker": "tcp://home-server.local:1883",
 
 	"tv": {
 		"host": "192.168.0.42",
-		"mac": "00:de:ed:ab:ca:ff",
 		"key": "a key from the TV",
 	},
 
-	"topic_power": "home/living-room/tv/power",
-	"topic_volume": "home/living-room/tv/volume_percent",
-	"topic_app": "home/living-room/tv/input",
+        "topics": {
+		"app": "home/living-room/tv/input_enum",
+		"appValues": "home/living-room/tv/input_enum/values",
+		"power": "home/living-room/tv/power",
+		"volume": "home/living-room/tv/volume_percent"
+        },
 
 	"apps": {
 		"XBMC": "com.webos.app.hdmi1",
@@ -53,4 +54,5 @@ For example,
 
 Without a key, you will need to approve the server's connection on the TV every time the server starts.
 
-You can generate a key using `cmd/generate-key`, which will print one out. Put it in the config, and the server is pre-authorized from then on.
+You can generate a key using `cmd/generate-key`, which will print one out.
+Put it in the config, and the server is pre-authorized from then on.

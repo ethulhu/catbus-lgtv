@@ -8,7 +8,7 @@ with pkgs;
 buildGoModule rec {
   name = "catbus-lgtv-${version}";
   version = "latest";
-  goPackagePath = "github.com/ethulhu/catbus-lgtv";
+  goPackagePath = "go.eth.moe/catbus-lgtv";
 
   modSha256 = "1s34h495h40vs90c79vdzk6pmpzskbmq0dqn4nw4iq7880i5s0z2";
 

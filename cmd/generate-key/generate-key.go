@@ -12,8 +12,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/ethulhu/catbus-lgtv/config"
-	"github.com/ethulhu/catbus-lgtv/lgtv"
+	"go.eth.moe/catbus-lgtv/config"
+	"go.eth.moe/catbus-lgtv/lgtv"
 )
 
 var (

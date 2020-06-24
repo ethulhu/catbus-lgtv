@@ -10,8 +10,8 @@ import (
 	"log"
 	"net"
 
-	"github.com/ethulhu/catbus-lgtv/config"
-	"github.com/ethulhu/catbus-lgtv/wol"
+	"go.eth.moe/catbus-lgtv/config"
+	"go.eth.moe/catbus-lgtv/wol"
 )
 
 var (

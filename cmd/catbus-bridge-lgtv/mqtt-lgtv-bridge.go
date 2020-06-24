@@ -16,10 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethulhu/catbus-lgtv/config"
-	"github.com/ethulhu/catbus-lgtv/lgtv"
-	"github.com/ethulhu/catbus-lgtv/mqtt"
-	"github.com/ethulhu/catbus-lgtv/wol"
+	"go.eth.moe/catbus-lgtv/config"
+	"go.eth.moe/catbus-lgtv/lgtv"
+	"go.eth.moe/catbus-lgtv/mqtt"
+	"go.eth.moe/catbus-lgtv/wol"
 )
 
 var (

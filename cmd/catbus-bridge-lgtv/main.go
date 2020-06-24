@@ -17,7 +17,7 @@ import (
 
 	"go.eth.moe/catbus-lgtv/config"
 	"go.eth.moe/catbus-lgtv/lgtv"
-	"go.eth.moe/catbus-lgtv/mqtt"
+	"go.eth.moe/catbus"
 )
 
 var (
@@ -39,40 +39,54 @@ func main() {
 	tv := lgtv.NewClient(cfg.TV.Host, lgtv.DefaultOptions)
 
 	brokerURI := fmt.Sprintf("tcp://%v:%v", cfg.BrokerHost, cfg.BrokerPort)
-	brokerOptions := mqtt.NewClientOptions()
-	brokerOptions.AddBroker(brokerURI)
-	brokerOptions.SetAutoReconnect(true)
-	brokerOptions.SetConnectionLostHandler(func(_ mqtt.Client, err error) {
-		log.Printf("disconnected from MQTT broker %s: %v", brokerURI, err)
+	client := catbus.NewClient(brokerURI, catbus.ClientOptions{
+		ConnectHandler: func(client *catbus.Client) {
+			log.Printf("connected to Catbus %v", brokerURI)
+
+			if err := client.Subscribe(cfg.TopicApp, setApp(cfg, tv)); err != nil {
+				log.Printf("could not subscribe to %q: %v", cfg.TopicApp, err)
+			}
+			if err := client.Subscribe(cfg.TopicPower, setPower(cfg, tv)); err != nil {
+				log.Printf("could not subscribe to %q: %v", cfg.TopicPower, err)
+			}
+			if err := client.Subscribe(cfg.TopicVolume, setVolume(tv)); err != nil {
+				log.Printf("could not subscribe to %q: %v", cfg.TopicVolume, err)
+			}
+
+			var appNames []string
+			for name := range cfg.Apps {
+				appNames = append(appNames, name)
+			}
+			sort.Strings(appNames)
+			if err := client.Publish(cfg.TopicAppValues, catbus.Retain, strings.Join(appNames, "\n")); err != nil {
+				log.Printf("could not publish to %q: %v", cfg.TopicAppValues, err)
+			}
+		},
+		DisconnectHandler: func(client *catbus.Client, err error) {
+			log.Printf("disconnected from Catbus %s: %v", brokerURI, err)
+		},
 	})
-	brokerOptions.SetOnConnectHandler(func(broker mqtt.Client) {
-		log.Printf("connected to MQTT broker %v", brokerURI)
 
-		_ = broker.Subscribe(cfg.TopicApp, mqtt.AtLeastOnce, setApp(cfg, tv))
-		_ = broker.Subscribe(cfg.TopicPower, mqtt.AtLeastOnce, setPower(cfg, tv))
-		_ = broker.Subscribe(cfg.TopicVolume, mqtt.AtLeastOnce, setVolume(tv))
-	})
-
-	log.Printf("connecting to MQTT broker %v", brokerURI)
-	broker := mqtt.NewClient(brokerOptions)
-	_ = broker.Connect()
-
-	var appNames []string
-	for name := range cfg.Apps {
-		appNames = append(appNames, name)
-	}
-	sort.Strings(appNames)
-	_ = broker.Publish(cfg.TopicAppValues, mqtt.AtLeastOnce, mqtt.Retain, strings.Join(appNames, "\n"))
+	go func() {
+		log.Printf("connecting to Catbus %v", brokerURI)
+		if err := client.Connect(); err != nil {
+			log.Fatalf("could not connect to Catbus: %v", err)
+		}
+	}()
 
 	tv.SetAppHandler(func(app lgtv.App) {
 		name, ok := cfg.AppNameForID(app.ID)
 		if !ok {
 			name = app.ID
 		}
-		_ = broker.Publish(cfg.TopicApp, mqtt.AtLeastOnce, mqtt.Retain, name)
+		if err := client.Publish(cfg.TopicApp, catbus.Retain, name); err != nil {
+			log.Printf("could not publish to %q: %v", cfg.TopicApp, err)
+		}
 	})
 	tv.SetVolumeHandler(func(volume lgtv.Volume) {
-		_ = broker.Publish(cfg.TopicVolume, mqtt.AtLeastOnce, mqtt.Retain, fmt.Sprintf("%v", volume.Level))
+		if err := client.Publish(cfg.TopicVolume, catbus.Retain, fmt.Sprintf("%v", volume.Level)); err != nil {
+			log.Printf("could not publish to %q: %v", cfg.TopicVolume, err)
+		}
 	})
 
 	// loop forever.
@@ -90,7 +104,6 @@ func main() {
 			log.Printf("could not register with TV: %v", err)
 		}
 		log.Print("connected to TV")
-		_ = broker.Publish(cfg.TopicPower, mqtt.AtLeastOnce, mqtt.Retain, "on")
 
 		if err := tv.SubscribeApp(); err != nil {
 			log.Printf("could not subscribe to app events: %v", err)
@@ -102,12 +115,11 @@ func main() {
 		if err := tv.Err(); err != nil {
 			log.Printf("disconnected from TV: %v", err)
 		}
-		_ = broker.Publish(cfg.TopicPower, mqtt.AtLeastOnce, mqtt.Retain, "off")
 	}
 }
 
-func setVolume(tv lgtv.Client) mqtt.MessageHandler {
-	return func(_ mqtt.Client, msg mqtt.Message) {
+func setVolume(tv lgtv.Client) catbus.MessageHandler {
+	return func(_ *catbus.Client, msg catbus.Message) {
 		volume, err := strconv.Atoi(string(msg.Payload()))
 		if err != nil {
 			return
@@ -125,8 +137,8 @@ func setVolume(tv lgtv.Client) mqtt.MessageHandler {
 		}
 	}
 }
-func setApp(cfg *config.Config, tv lgtv.Client) mqtt.MessageHandler {
-	return func(_ mqtt.Client, msg mqtt.Message) {
+func setApp(cfg *config.Config, tv lgtv.Client) catbus.MessageHandler {
+	return func(_ *catbus.Client, msg catbus.Message) {
 		appID, ok := cfg.Apps[string(msg.Payload())]
 		if !ok {
 			return
@@ -139,8 +151,8 @@ func setApp(cfg *config.Config, tv lgtv.Client) mqtt.MessageHandler {
 		}
 	}
 }
-func setPower(cfg *config.Config, tv lgtv.Client) mqtt.MessageHandler {
-	return func(_ mqtt.Client, msg mqtt.Message) {
+func setPower(cfg *config.Config, tv lgtv.Client) catbus.MessageHandler {
+	return func(_ *catbus.Client, msg catbus.Message) {
 		switch string(msg.Payload()) {
 		case "off":
 			if tv.IsConnected() {

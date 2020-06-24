@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net"
 	"sort"
 	"strconv"
 	"strings"
@@ -19,7 +18,6 @@ import (
 	"go.eth.moe/catbus-lgtv/config"
 	"go.eth.moe/catbus-lgtv/lgtv"
 	"go.eth.moe/catbus-lgtv/mqtt"
-	"go.eth.moe/catbus-lgtv/wol"
 )
 
 var (
@@ -144,11 +142,6 @@ func setApp(cfg *config.Config, tv lgtv.Client) mqtt.MessageHandler {
 func setPower(cfg *config.Config, tv lgtv.Client) mqtt.MessageHandler {
 	return func(_ mqtt.Client, msg mqtt.Message) {
 		switch string(msg.Payload()) {
-		case "on":
-			mac, _ := net.ParseMAC(cfg.TV.MAC)
-			if err := wol.Wake(mac); err != nil {
-				log.Printf("could not turn on TV: %v", err)
-			}
 		case "off":
 			if tv.IsConnected() {
 				ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)

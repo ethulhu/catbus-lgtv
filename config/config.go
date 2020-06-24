@@ -13,19 +13,19 @@ import (
 
 type (
 	Config struct {
-		BrokerHost string `json:"broker_host"`
-		BrokerPort uint   `json:"broker_port"`
+		BrokerURI string `json:"mqttBroker"`
 
 		TV struct {
 			Host string `json:"host"`
-			MAC  string `json:"mac"`
 			Key  string `json:"key"`
 		} `json:"tv"`
 
-		TopicPower     string `json:"topic_power"`
-		TopicApp       string `json:"topic_app"`
-		TopicAppValues string `json:"topic_app_values"`
-		TopicVolume    string `json:"topic_volume"`
+		Topics struct {
+			App       string `json:"app"`
+			AppValues string `json:"appValues"`
+			Power     string `json:"power"`
+			Volume    string `json:"volume"`
+		} `json:"topics"`
 
 		Apps map[string]string `json:"apps"`
 	}

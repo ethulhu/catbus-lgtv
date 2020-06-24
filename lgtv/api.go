@@ -14,40 +14,35 @@ import (
 type (
 	// Client is a reusable WebOS LG TV client.
 	Client interface {
-		// Connect connects to the TV, with optional Key parameter.
-		Connect(context.Context) error
 		// Register registers the Client with the TV.
 		// This may may require manual approval on the TV itself.
 		// If registration fails, Register() will return the original key.
 		Register(context.Context, string) (string, error)
-		// Err blocks until a connection error is returned.
-		// Once an error is returned, the Client must be reconnected.
-		Err() error
-		// IsConnected returns whether the Client is connected to the TV.
-		IsConnected() bool
 
 		// ListApp lists all apps on the TV.
 		ListApps(context.Context) ([]App, error)
 		// App gets the current app on the TV.
 		App(context.Context) (App, error)
-		// SetApp sets the current app on the TV.
-		SetApp(context.Context, App) error
-		// SetAppHandler sets the hander for App event subscriptions.
-		SetAppHandler(func(App))
-		// SubscribeApp starts listening for App events, and returns a cancel function.
-		SubscribeApp() func()
+		// SetApp sets the current app ID on the TV.
+		SetApp(context.Context, string) error
+		// SubscribeApp listens for App events.
+		SubscribeApp(func(App))
 
 		// Volume gets the current volume on the TV.
 		Volume(context.Context) (Volume, error)
-		// SetVolume sets the current volume on the TV.
+		// SetVolume sets the current volume percentage on the TV.
 		SetVolume(context.Context, int) error
-		// SetVolumeHandler sets the hander for Volume event subscriptions.
-		SetVolumeHandler(func(Volume))
-		// SubscribeVolume starts listening for Volume events, and returns a cancel function.
-		SubscribeVolume() func()
+		// SubscribeVolume listens for Volume events.
+		SubscribeVolume(func(Volume))
 
 		// TurnOff turns off the TV.
 		TurnOff(context.Context) error
+
+		// Wait blocks until the connection to the TV is closed.
+		Wait() error
+
+		// Close closes the connection to the TV.
+		Close() error
 	}
 
 	Options struct {
@@ -60,8 +55,8 @@ type (
 	}
 
 	Volume struct {
-		Level int  `json:"volume"`
-		Muted bool `json:"muted"`
+		Percent int  `json:"volume"`
+		Muted   bool `json:"muted"`
 	}
 
 	// TVError is an error returned by the TV, e.g. about invalid messages.
@@ -84,6 +79,6 @@ func (o *Options) pingPeriod() time.Duration {
 	return (o.PongTimeout * 9) / 10
 }
 
-func (e *TVError) Error() string {
+func (e TVError) Error() string {
 	return e.message
 }

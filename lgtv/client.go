@@ -17,8 +17,6 @@ import (
 type (
 	client struct {
 		conn *websocket.Conn
-		opts Options
-		uri  string
 
 		sync.Mutex
 		sequence         int
@@ -27,58 +25,43 @@ type (
 		connectionClosed chan struct{}
 		errors           chan error
 
-		appHandler    func(App)
-		volumeHandler func(Volume)
-
 		appNameForID map[string]string
 	}
 )
 
-func NewClient(host string, opts Options) Client {
-	return &client{
-		uri:  fmt.Sprintf("ws://%v:3000", host),
-		opts: opts,
-	}
-}
+func Dial(ctx context.Context, host string, opts Options) (Client, error) {
+	uri := fmt.Sprintf("ws://%v:3000", host)
 
-func (c *client) Connect(ctx context.Context) error {
-	if c.IsConnected() {
-		return nil
-	}
-
-	conn, _, err := websocket.DefaultDialer.DialContext(ctx, c.uri, nil)
+	conn, _, err := websocket.DefaultDialer.DialContext(ctx, uri, nil)
 	if err != nil {
-		return fmt.Errorf("could not dial %v: %w", c.uri, err)
+		return nil, fmt.Errorf("could not dial %v: %w", uri, err)
 	}
-
-	c.Lock()
-	defer c.Unlock()
-	c.sequence = 0
-	c.requestChannel = make(chan *request)
-	c.responseChannels = map[int]chan *response{}
-	c.connectionClosed = make(chan struct{})
-	c.errors = make(chan error)
-
-	conn.SetPongHandler(func(text string) error {
-		return conn.SetReadDeadline(time.Now().Add(c.opts.PongTimeout))
+	conn.SetPongHandler(func(_ string) error {
+		return conn.SetReadDeadline(time.Now().Add(opts.PongTimeout))
 	})
-	c.conn = conn
+
+	c := &client{
+		conn: conn,
+
+		requestChannel:   make(chan *request),
+		responseChannels: map[int]chan *response{},
+		connectionClosed: make(chan struct{}),
+		errors:           make(chan error),
+	}
 	go c.readLoop()
-	go c.writeLoop()
+	go c.writeLoop(opts.pingPeriod())
 
-	return nil
+	return c, nil
 }
 
-func (c *client) IsConnected() bool {
-	return c.conn != nil
+func (c *client) Close() error {
+	return c.conn.Close()
 }
 
-func (c *client) Err() error {
+func (c *client) Wait() error {
 	defer close(c.errors)
 	return <-c.errors
 }
-func (c *client) SetAppHandler(f func(App))       { c.appHandler = f }
-func (c *client) SetVolumeHandler(f func(Volume)) { c.volumeHandler = f }
 
 func (c *client) readLoop() {
 	defer close(c.connectionClosed)
@@ -103,8 +86,8 @@ func (c *client) readLoop() {
 		c.Unlock()
 	}
 }
-func (c *client) writeLoop() {
-	ping := time.NewTicker(c.opts.pingPeriod())
+func (c *client) writeLoop(pingPeriod time.Duration) {
+	ping := time.NewTicker(pingPeriod)
 	defer ping.Stop()
 	defer close(c.requestChannel)
 

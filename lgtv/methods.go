@@ -11,10 +11,6 @@ import (
 )
 
 func (c *client) ListApps(ctx context.Context) ([]App, error) {
-	if !c.IsConnected() {
-		return nil, ErrNotConnected
-	}
-
 	id, rspChan, cancel := c.newRequest()
 	defer cancel()
 
@@ -37,10 +33,6 @@ func (c *client) ListApps(ctx context.Context) ([]App, error) {
 	return payload.Apps, nil
 }
 func (c *client) App(ctx context.Context) (App, error) {
-	if !c.IsConnected() {
-		return App{}, ErrNotConnected
-	}
-
 	id, rspChan, cancel := c.newRequest()
 	defer cancel()
 
@@ -62,8 +54,8 @@ func (c *client) App(ctx context.Context) (App, error) {
 	// TODO: cache a copy of all App names in the client object.
 	return App{ID: payload.ID}, nil
 }
-func (c *client) SubscribeApp() func() {
-	id, rspChan, cancel := c.newRequest()
+func (c *client) SubscribeApp(f func(App)) {
+	id, rspChan, _ := c.newRequest()
 
 	req := &request{
 		ID:   id,
@@ -86,16 +78,11 @@ func (c *client) SubscribeApp() func() {
 				continue
 			}
 			app := App{ID: payload.ID}
-			c.appHandler(app)
+			go f(app)
 		}
 	}()
-	return cancel
 }
-func (c *client) SetApp(ctx context.Context, app App) error {
-	if !c.IsConnected() {
-		return ErrNotConnected
-	}
-
+func (c *client) SetApp(ctx context.Context, appID string) error {
 	id, rspChan, cancel := c.newRequest()
 	defer cancel()
 
@@ -105,7 +92,7 @@ func (c *client) SetApp(ctx context.Context, app App) error {
 		URI:  setApp,
 		Payload: struct {
 			ID string `json:"id"`
-		}{app.ID},
+		}{appID},
 	}
 	c.requestChannel <- req
 
@@ -114,10 +101,6 @@ func (c *client) SetApp(ctx context.Context, app App) error {
 }
 
 func (c *client) Volume(ctx context.Context) (Volume, error) {
-	if !c.IsConnected() {
-		return Volume{}, ErrNotConnected
-	}
-
 	id, rspChan, cancel := c.newRequest()
 	defer cancel()
 
@@ -139,8 +122,8 @@ func (c *client) Volume(ctx context.Context) (Volume, error) {
 	}
 	return payload, nil
 }
-func (c *client) SubscribeVolume() func() {
-	id, rspChan, cancel := c.newRequest()
+func (c *client) SubscribeVolume(f func(Volume)) {
+	id, rspChan, _ := c.newRequest()
 
 	req := &request{
 		ID:   id,
@@ -162,16 +145,11 @@ func (c *client) SubscribeVolume() func() {
 				log.Printf("could not unmarshal Volume payload: %v", err)
 				continue
 			}
-			c.volumeHandler(payload)
+			go f(payload)
 		}
 	}()
-	return cancel
 }
 func (c *client) SetVolume(ctx context.Context, volume int) error {
-	if !c.IsConnected() {
-		return ErrNotConnected
-	}
-
 	id, rspChan, cancel := c.newRequest()
 	defer cancel()
 
@@ -188,10 +166,6 @@ func (c *client) SetVolume(ctx context.Context, volume int) error {
 }
 
 func (c *client) TurnOff(ctx context.Context) error {
-	if !c.IsConnected() {
-		return ErrNotConnected
-	}
-
 	id, rspChan, cancel := c.newRequest()
 	defer cancel()
 

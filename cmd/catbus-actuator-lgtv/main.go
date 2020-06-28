@@ -33,7 +33,7 @@ func main() {
 	}
 
 	client := catbus.NewClient(config.BrokerURI, catbus.ClientOptions{
-		ConnectHandler: func(client *catbus.Client) {
+		ConnectHandler: func(client catbus.Client) {
 			log.Printf("connected to Catbus %v", config.BrokerURI)
 
 			if err := client.Subscribe(config.Topics.App, setApp(config)); err != nil {
@@ -46,7 +46,7 @@ func main() {
 				log.Printf("could not subscribe to %q: %v", config.Topics.Power, err)
 			}
 		},
-		DisconnectHandler: func(client *catbus.Client, err error) {
+		DisconnectHandler: func(client catbus.Client, err error) {
 			log.Printf("disconnected from Catbus %s: %v", config.BrokerURI, err)
 		},
 	})
@@ -58,10 +58,10 @@ func main() {
 }
 
 func setApp(config *config.Config) catbus.MessageHandler {
-	return func(_ *catbus.Client, msg catbus.Message) {
-		appID, ok := config.Apps[msg.Payload()]
+	return func(_ catbus.Client, msg catbus.Message) {
+		appID, ok := config.Apps[msg.Payload]
 		if !ok {
-			log.Printf("got invalid app %q", msg.Payload())
+			log.Printf("got invalid app %q", msg.Payload)
 			return
 		}
 
@@ -83,8 +83,8 @@ func setApp(config *config.Config) catbus.MessageHandler {
 	}
 }
 func setVolume(config *config.Config) catbus.MessageHandler {
-	return func(_ *catbus.Client, msg catbus.Message) {
-		volume, err := strconv.Atoi(msg.Payload())
+	return func(_ catbus.Client, msg catbus.Message) {
+		volume, err := strconv.Atoi(msg.Payload)
 		if err != nil {
 			log.Printf("got invalid volume %q", volume)
 			return
@@ -114,8 +114,8 @@ func setVolume(config *config.Config) catbus.MessageHandler {
 	}
 }
 func setPower(config *config.Config) catbus.MessageHandler {
-	return func(_ *catbus.Client, msg catbus.Message) {
-		if msg.Payload() != "off" {
+	return func(_ catbus.Client, msg catbus.Message) {
+		if msg.Payload != "off" {
 			return
 		}
 

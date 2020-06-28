@@ -8,5 +8,5 @@ go 1.13
 
 require (
 	github.com/gorilla/websocket v1.4.2
-	go.eth.moe/catbus v0.0.2
+	go.eth.moe/catbus v0.0.4
 )

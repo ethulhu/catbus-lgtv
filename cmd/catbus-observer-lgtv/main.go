@@ -4,6 +4,8 @@
 
 package main
 
+// TODO: subscribe to App and Volume, and if they're set to invalid values, set them to the real ones.
+
 import (
 	"context"
 	"flag"
@@ -33,11 +35,11 @@ func main() {
 	}
 
 	client := catbus.NewClient(config.BrokerURI, catbus.ClientOptions{
-		ConnectHandler: func(client *catbus.Client) {
+		ConnectHandler: func(client catbus.Client) {
 			log.Printf("connected to Catbus %v", config.BrokerURI)
 
 		},
-		DisconnectHandler: func(client *catbus.Client, err error) {
+		DisconnectHandler: func(client catbus.Client, err error) {
 			log.Printf("disconnected from Catbus %s: %v", config.BrokerURI, err)
 		},
 	})

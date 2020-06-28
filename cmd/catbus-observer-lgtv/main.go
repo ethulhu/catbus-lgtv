@@ -8,7 +8,10 @@ package main
 
 import (
 	"context"
+	"path"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"go.eth.moe/catbus"
@@ -40,6 +43,8 @@ func main() {
 			log := logger.Background()
 			log.AddField("broker-uri", config.BrokerURI)
 			log.Info("connected to Catbus")
+
+			publishAppNames(config, client)
 		},
 		DisconnectHandler: func(client catbus.Client, err error) {
 			log := logger.Background()
@@ -123,4 +128,20 @@ func main() {
 			log.Info("disconnected from TV")
 		}
 	}
+}
+
+func publishAppNames(config *config.Config, client catbus.Client) {
+	log := logger.Background()
+
+	var appNames []string
+	for appName := range config.Apps {
+		appNames = append(appNames, appName)
+	}
+	sort.Strings(appNames)
+	appNamesTopic := path.Join(config.Topics.App, "values")
+	if err := client.Publish(appNamesTopic, catbus.Retain, strings.Join(appNames, "\n")); err != nil {
+		log.WithError(err).Error("could not publish app names to Catbus")
+		return
+	}
+	log.Info("published app names to Catbus")
 }

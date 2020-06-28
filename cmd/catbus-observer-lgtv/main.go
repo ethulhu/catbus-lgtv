@@ -8,68 +8,85 @@ package main
 
 import (
 	"context"
-	"flag"
-	"log"
 	"strconv"
 	"time"
 
 	"go.eth.moe/catbus"
 	"go.eth.moe/catbus-lgtv/config"
 	"go.eth.moe/catbus-lgtv/lgtv"
+	"go.eth.moe/flag"
+	"go.eth.moe/logger"
 )
 
 var (
-	configPath = flag.String("config-path", "", "path to config.json")
+	configPath = flag.Custom("config-path", "", "path to config.json", flag.RequiredString)
 )
 
 func main() {
 	flag.Parse()
 
-	if *configPath == "" {
-		log.Fatal("must set --config-path")
-	}
+	configPath := (*configPath).(string)
 
-	config, err := config.Load(*configPath)
+	log, _ := logger.FromContext(context.Background())
+
+	config, err := config.Load(configPath)
 	if err != nil {
-		log.Fatalf("could not load config: %v", err)
+		log.AddField("config-path", configPath)
+		log.WithError(err).Fatal("could not load config")
 	}
 
 	client := catbus.NewClient(config.BrokerURI, catbus.ClientOptions{
 		ConnectHandler: func(client catbus.Client) {
-			log.Printf("connected to Catbus %v", config.BrokerURI)
-
+			log := logger.Background()
+			log.AddField("broker-uri", config.BrokerURI)
+			log.Info("connected to Catbus")
 		},
 		DisconnectHandler: func(client catbus.Client, err error) {
-			log.Printf("disconnected from Catbus %s: %v", config.BrokerURI, err)
+			log := logger.Background()
+			log.AddField("broker-uri", config.BrokerURI)
+			if err != nil {
+				log.AddField("error", err)
+			}
+			log.Info("disconnected from Catbus")
 		},
 	})
 
 	go func() {
-		log.Printf("connecting to Catbus %v", config.BrokerURI)
+		log := logger.Background()
+		log.AddField("broker-uri", config.BrokerURI)
+		log.Info("connecting to Catbus")
 		if err := client.Connect(); err != nil {
-			log.Fatalf("could not connect to Catbus: %v", err)
+			log.WithError(err).Fatal("could not connect to Catbus")
 		}
 	}()
 
 	for {
-		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+		log, ctx := logger.FromContext(context.Background())
+		ctx, _ = context.WithTimeout(ctx, 10*time.Second)
+
+		log.AddField("tv", config.TV.Host)
+
+		log.Info("connecting to TV")
 		tv, err := lgtv.Dial(ctx, config.TV.Host, lgtv.DefaultOptions)
 		if err != nil {
-			log.Printf("could not connect to TV: %v", err)
+			log.WithError(err).Info("could not connect to TV")
 			continue
 		}
-		log.Print("connected to TV")
+		log.Info("connected to TV")
 
 		if _, err := tv.Register(ctx, config.TV.Key); err != nil {
-			log.Printf("could not register with TV: %v", err)
+			log.WithError(err).Error("could not register with TV")
 			tv.Close()
 			continue
 		}
-		log.Print("registered with TV")
+		log.Info("registered with TV")
 
 		tv.SubscribeApp(func(app lgtv.App) {
+			log, _ := log.Fork(context.Background())
+			log.AddField("app-id", app.ID)
+
 			if app.ID == "" {
-				// This means it's about to turn off.
+				log.Info("empty app ID, TV about to turn off")
 				return
 			}
 
@@ -77,20 +94,33 @@ func main() {
 			if !ok {
 				name = app.ID
 			}
+			log.AddField("app-name", name)
 
+			log.AddField("topic", config.Topics.App)
 			if err := client.Publish(config.Topics.App, catbus.Retain, name); err != nil {
-				log.Printf("could not publish to %q: %v", config.Topics.App, err)
+				log.WithError(err).Error("could not publish to Catbus")
+				return
 			}
+			log.Info("published to Catbus")
 		})
 
 		tv.SubscribeVolume(func(v lgtv.Volume) {
+			log, _ := log.Fork(context.Background())
+			log.AddField("volume", v.Percent)
+			log.AddField("topic", config.Topics.Volume)
+
 			if err := client.Publish(config.Topics.Volume, catbus.Retain, strconv.Itoa(v.Percent)); err != nil {
-				log.Printf("could not publish to %q: %v", config.Topics.Volume, err)
+				log.WithError(err).Error("could not publish to Catbus")
+				return
 			}
+			log.Info("published to Catbus")
 		})
 
+		log.Info("waiting for TV to disconnect")
 		if err := tv.Wait(); err != nil {
-			log.Printf("disconnected from TV: %v", err)
+			log.WithError(err).Error("disconnected from TV")
+		} else {
+			log.Info("disconnected from TV")
 		}
 	}
 }
